@@ -36,3 +36,22 @@ jobs:
 
       - name: Run Unit Tests
         run: python manage.py test
+deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Trigger Auto-deploy on Render
+        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+
+      - name: Wait for deployment
+        run: sleep 45 
+
+      - name: Sanity Check (Weryfikacja)
+        run: |
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}\n" ${{ secrets.RENDER_APP_URL }})
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Sanity check failed! Otrzymano status: $HTTP_STATUS"
+            exit 1
+          fi
+          echo "Sanity check passed with status 200 OK!"
